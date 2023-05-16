@@ -1,6 +1,10 @@
 ﻿#include <iostream>
 #include <string>
+#include <cctype>
+#include <algorithm>
 #include <queue>
+
+#define NO_OF_CHARS 256
 
 struct Node {
     Node(std::string k, Node* p = nullptr) : key(k), parent(p) {
@@ -30,15 +34,20 @@ public:
         if (_root != nullptr) delete _root;
     }
 
-    const Node* FindElement(const std::string key);
     void AddWord(std::string _word);
+    const Node* FindElement(std::string key);
 private:
+    //алгоритм поиска подстроки в строке
+    bool FindSymbolInString(std::string strng, std::string symbol);
+    void badCharHeuristic(std::string str, int size, int badchar[NO_OF_CHARS]);
     Node* _root;
 };
 
 //алгоритм поиска по дереву:
-const Node* AutoCompleteTree::FindElement(const std::string key)
+const Node* AutoCompleteTree::FindElement(std::string key)
 {
+    //чтобы не было зависимости от  регистра
+    std::transform(key.begin(), key.end(), key.begin(), ::tolower);
     if (_root == nullptr)
         return nullptr;
     // Создаем пустую очередь для добавления узлов с одинакового уровня -
@@ -51,8 +60,10 @@ const Node* AutoCompleteTree::FindElement(const std::string key)
         Node* node = q.front();
         q.pop();
 
-        if (node->key == key)
-            return node;
+        if (FindSymbolInString(node->key, key)){
+          std::cout << "key: " << node->key << std::endl;
+          //return node;
+        }
 
         if (node->leftChild != nullptr)
             q.push(node->leftChild);
@@ -62,6 +73,7 @@ const Node* AutoCompleteTree::FindElement(const std::string key)
 }
 
 void AutoCompleteTree::AddWord(std::string _word) {
+    std::transform(_word.begin(), _word.end(), _word.begin(), ::tolower);
     if (_root == nullptr) {
         _root = new Node(_word);
     }
@@ -91,22 +103,73 @@ void AutoCompleteTree::AddWord(std::string _word) {
             }
         }
     }
+    //std::cout << "Word: " << _word << std::endl;
+}
+
+void AutoCompleteTree::badCharHeuristic(std::string str, int size, int badchar[NO_OF_CHARS]){
+    int i;
+    for (i = 0; i < NO_OF_CHARS; i++)
+        badchar[i] = -1;
+    for (i = 0; i < size; i++)
+        badchar[(int)str[i]] = i;
+}
+
+bool AutoCompleteTree::FindSymbolInString(std::string big_txt, std::string key_symb){
+    int m = key_symb.size();
+    int n = big_txt.size();
+
+    int badchar[NO_OF_CHARS];
+
+    badCharHeuristic(key_symb, m, badchar);
+
+    int s = 0;
+    while (s <= (n - m))
+    {
+        int j = m - 1;
+
+        while (j >= 0 && key_symb[j] == big_txt[s + j])
+            j--;
+
+        if (j < 0)
+        {
+            //std::cout << "key_symbtern occurs at shift = " << s << std::endl;
+            s += (s + m < n) ? m - badchar[big_txt[s + m]] : 1;
+            return true;
+        }
+        else
+        {
+            int bc = badchar[big_txt[s + j]];
+            s += std::max(1, j - bc);
+        }
+    }
+    return false;
 }
 
 int main()
 {
     //создадим словарь... слов :)
     AutoCompleteTree act;
-    act.AddWord("abstraction");
+    act.AddWord("aBstRactIon");
     act.AddWord("incapsulation");
     act.AddWord("inheritage");
     act.AddWord("queue");
     act.AddWord("unicode");
-    act.AddWord("lvalue");
+    act.AddWord("lVaLue");
     act.AddWord("rvalue");
-    act.AddWord("void");
+    act.AddWord("VOID");
     act.AddWord("unique_ptr");
     act.AddWord("linux");
+    act.AddWord("Geant4");
+    act.AddWord("ROOT CERN")
 
-    std::cout << "Hello World!\n";
+    std::string key;
+    //вводим по символу, нужно, чтобы метод искал сначала по первой букве, потом по двум...
+    while(key != "quit"){ //пусть цикл эмулирует чат...
+      //то есть, ввели букву l -- нам предложили "linux" или "lvalue" или "incapsulation" -- все, где есть l
+      std::cin >> key;
+      act.FindElement(key);
+      //ввели символы value -- нам предложили lVaLue или rvalue
+    }
+
+    //std::cout << "Hello World!\n";
 }
